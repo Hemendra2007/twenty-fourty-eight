@@ -1,5 +1,6 @@
 import random
 import copy
+import json
 
 BOARD_SIZE = 4
 
@@ -72,6 +73,23 @@ def is_game_over(board):
             if j < BOARD_SIZE - 1 and board[i][j] == board[i][j + 1]:
                 return False
     return True
+
+def save_game(board, score):
+    game_state = {
+        'board': board,
+        'score': score
+    }
+    with open('2048_save.json', 'w') as f:
+        json.dump(game_state, f)
+
+def load_game():
+    try:
+        with open('2048_save.json', 'r') as f:
+            game_state = json.load(f)
+            return game_state['board'], game_state['score']
+    except FileNotFoundError:
+        print("No saved game found. Starting a new game.")
+        return initialize_board(), 0
     
 if __name__ == "__main__":
     game_board = initialize_board()
@@ -83,8 +101,10 @@ if __name__ == "__main__":
     previous_board = copy.deepcopy(game_board)
     previous_score = score
     while True:
-        move = input("Enter move (w/a/s/d): ")
+        move = input("Enter move (w/a/s/d) or 'u' to undo: ")
         if move in ['w', 'a', 's', 'd']:
+            previous_board = copy.deepcopy(game_board)
+            previous_score = score
             game_board = handle_input(game_board, move)
             add_random_tile(game_board)
             display_board(game_board)
@@ -101,5 +121,10 @@ if __name__ == "__main__":
                     break
             else:
                 print("No valid move in that direction!")
+            elif move == 'u':
+            game_board = previous_board
+            score = previous_score
+            display_board(game_board)
+            print(f"Score: {score}")
         else:
-            print("Invalid move! Please enter 'w', 'a', 's', or 'd'.")
+            print("Invalid move! Please enter 'w', 'a', 's', 'd', or 'u' to undo.")
