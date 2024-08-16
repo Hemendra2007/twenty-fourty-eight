@@ -1,11 +1,43 @@
 import random
 import copy
 import json
+import pygame
 
-BOARD_SIZE = 4
+pygame.init()
+WIDTH, HEIGHT = 400, 400
+TILE_SIZE = WIDTH // 4
+BACKGROUND_COLOR = (187, 173, 160)
+TILE_COLORS = {
+    0: (205, 193, 180),
+    2: (238, 228, 218),
+    4: (237, 224, 200),
+    8: (242, 177, 121),
+    16: (245, 149, 99),
+    32: (246, 124, 95),
+    64: (246, 94, 59),
+    128: (237, 207, 114),
+    256: (237, 204, 97),
+    512: (237, 200, 80),
+    1024: (237, 197, 63),
+    2048: (237, 194, 46),
+}
+FONT = pygame.font.SysFont('arial', 40)
+
+def draw_board(screen, board, score, high_score):
+    screen.fill(BACKGROUND_COLOR)
+    for i in range(4):
+        for j in range(4):
+            value = board[i][j]
+            color = TILE_COLORS.get(value, TILE_COLORS[2048])
+            pygame.draw.rect(screen, color, (j * TILE_SIZE, i * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+            if value != 0:
+                text = FONT.render(str(value), True, (0, 0, 0))
+                text_rect = text.get_rect(center=(j * TILE_SIZE + TILE_SIZE / 2, i * TILE_SIZE + TILE_SIZE / 2))
+                screen.blit(text, text_rect)
+    pygame.display.update()
 
 def initialize_board():
-    board = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+    board = [[0] * 4 for _ in range(4)]
     return board
 
 def display_board(board):
@@ -98,12 +130,11 @@ def update_high_score(score, high_score):
         high_score = score
         print(f"New High Score: {high_score}")
     return high_score
-    
+
 if __name__ == "__main__":
     load = input("Load saved game? (y/n): ")
     if load.lower() == 'y':
         game_board, score, high_score = load_game()
-        
     else:
         game_board = initialize_board()
         add_random_tile(game_board)
@@ -117,14 +148,14 @@ if __name__ == "__main__":
 
     previous_board = copy.deepcopy(game_board)
     previous_score = score
+    
     while True:
         move = input("Enter move (w/a/s/d), 'u' to undo, 'save' to save game: ")
+        
         if move in ['w', 'a', 's', 'd']:
             previous_board = copy.deepcopy(game_board)
             previous_score = score
-            game_board = handle_input(game_board, move)
-            add_random_tile(game_board)
-            display_board(game_board)
+            
             new_board, move_score = handle_input(game_board, move)
             if new_board != game_board:
                 game_board = new_board
@@ -132,23 +163,27 @@ if __name__ == "__main__":
                 add_random_tile(game_board)
                 display_board(game_board)
                 print(f"Score: {score}")
-            elif move == 'save':
-                save_game(game_board, score, high_score)
-                print("Game saved. Exiting.")
-                break
                 high_score = update_high_score(score, high_score)
                 print(f"High Score: {high_score}")
+                
                 if is_game_over(game_board):
                     print("Game Over! No more moves possible.")
                     print(f"Final Score: {score}")
                     break
             else:
                 print("No valid move in that direction!")
-            elif move == 'u':
+        
+        elif move == 'u':
             game_board = previous_board
             score = previous_score
             display_board(game_board)
             print(f"Score: {score}")
             print(f"High Score: {high_score}")
+        
+        elif move == 'save':
+            save_game(game_board, score, high_score)
+            print("Game saved. Exiting.")
+            break
+        
         else:
             print("Invalid move! Please enter 'w', 'a', 's', 'd', 'u' to undo, or 'save' to save the game.")
