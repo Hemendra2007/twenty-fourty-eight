@@ -1,4 +1,6 @@
 import random
+import copy
+
 BOARD_SIZE = 4
 
 def initialize_board():
@@ -58,18 +60,46 @@ def handle_input(board, move):
         return move_left(board)
     elif move == 'd':
         return move_right(board)
-    return board
+    return board, 0
+
+def is_game_over(board):
+    for i in range(BOARD_SIZE):
+        for j in range(BOARD_SIZE):
+            if board[i][j] == 0:
+                return False
+            if i < BOARD_SIZE - 1 and board[i][j] == board[i + 1][j]:
+                return False
+            if j < BOARD_SIZE - 1 and board[i][j] == board[i][j + 1]:
+                return False
+    return True
     
 if __name__ == "__main__":
     game_board = initialize_board()
     add_random_tile(game_board)
     add_random_tile(game_board)
+    score = 0
     display_board(game_board)
-     while True:
+
+    previous_board = copy.deepcopy(game_board)
+    previous_score = score
+    while True:
         move = input("Enter move (w/a/s/d): ")
         if move in ['w', 'a', 's', 'd']:
             game_board = handle_input(game_board, move)
             add_random_tile(game_board)
             display_board(game_board)
+            new_board, move_score = handle_input(game_board, move)
+            if new_board != game_board:
+                game_board = new_board
+                score += move_score
+                add_random_tile(game_board)
+                display_board(game_board)
+                print(f"Score: {score}")
+                if is_game_over(game_board):
+                    print("Game Over! No more moves possible.")
+                    print(f"Final Score: {score}")
+                    break
+            else:
+                print("No valid move in that direction!")
         else:
             print("Invalid move! Please enter 'w', 'a', 's', or 'd'.")
