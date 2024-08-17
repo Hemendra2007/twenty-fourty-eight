@@ -25,7 +25,15 @@ FONT = pygame.font.SysFont('arial', 40)
 SMALL_FONT = pygame.font.SysFont('arial', 24)
 
 def draw_board(screen, board, score, high_score):
-    screen.fill(BACKGROUND_COLOR)
+    if score < 1000:
+        screen.fill(BACKGROUND_COLOR)
+    elif score < 5000:
+        screen.fill((210, 180, 140))  # Light Brown
+    elif score < 10000:
+        screen.fill((144, 238, 144))  # Light Green
+    else:
+        screen.fill((135, 206, 250))  # Sky Blue
+    
     for i in range(4):
         for j in range(4):
             value = board[i][j]
@@ -35,6 +43,7 @@ def draw_board(screen, board, score, high_score):
                 text = FONT.render(str(value), True, (0, 0, 0))
                 text_rect = text.get_rect(center=(j * TILE_SIZE + TILE_SIZE / 2, i * TILE_SIZE + TILE_SIZE / 2))
                 screen.blit(text, text_rect)
+    
     score_text = SMALL_FONT.render(f"Score: {score}", True, (0, 0, 0))
     high_score_text = SMALL_FONT.render(f"High Score: {high_score}", True, (0, 0, 0))
     screen.blit(score_text, (10, HEIGHT - 90))
@@ -172,6 +181,20 @@ def animate_move(screen, old_board, new_board, score, high_score, direction):
         pygame.display.update()
         pygame.time.delay(delay)
 
+def pause_game(screen):
+    paused = True
+    pause_text = FONT.render("Game Paused", True, (0, 0, 0))
+    screen.blit(pause_text, (WIDTH // 4, HEIGHT // 2 - 20))
+    pygame.display.update()
+    while paused:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:  # Resume with 'R'
+                    paused = False
+
 def main():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption('2048')
@@ -244,6 +267,9 @@ def main():
                 
                 elif event.key == pygame.K_s:  # Save game
                     save_game(game_board, score, high_score)
+                
+                elif event.key == pygame.K_p:  # Pause game with 'P'
+                    pause_game(screen)
                 
     pygame.quit()
 
