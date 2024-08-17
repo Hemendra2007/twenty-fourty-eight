@@ -26,10 +26,12 @@ SMALL_FONT = pygame.font.SysFont('arial', 24)
 
 
 class Game:
-    def __init__(self):
+    def __init__(self, mode='classic'):
         self.board = self.initialize_board()
         self.score = 0
         self.high_score = 0
+        self.mode = mode
+        self.time_left = 60 if mode == 'timed' else None  # 60 seconds for timed mode
 
     def initialize_board(self):
         board = [[0] * 4 for _ in range(4)]
@@ -98,6 +100,8 @@ class Game:
         return True
 
     def is_game_over(self):
+        if self.mode == 'timed' and self.time_left <= 0:
+            return True
         for i in range(4):
             for j in range(4):
                 if self.board[i][j] == 0:
@@ -132,14 +136,20 @@ class Game:
     def reset_game(self):
         self.board = self.initialize_board()
         self.score = 0
+        if self.mode == 'timed':
+            self.time_left = 60
 
     def update_high_score(self):
         if self.score > self.high_score:
             self.high_score = self.score
             print(f"New High Score: {self.high_score}")
 
+    def update_timer(self):
+        if self.mode == 'timed' and self.time_left > 0:
+            self.time_left -= 1
 
-def draw_board(screen, board, score, high_score):
+
+def draw_board(screen, board, score, high_score, time_left=None, session_time=None):
     if score < 1000:
         screen.fill(BACKGROUND_COLOR)
     elif score < 5000:
@@ -163,6 +173,15 @@ def draw_board(screen, board, score, high_score):
     high_score_text = SMALL_FONT.render(f"High Score: {high_score}", True, (0, 0, 0))
     screen.blit(score_text, (10, HEIGHT - 90))
     screen.blit(high_score_text, (10, HEIGHT - 60))
+
+    if time_left is not None:
+        timer_text = SMALL_FONT.render(f"Time Left: {time_left}", True, (0, 0, 0))
+        screen.blit(timer_text, (WIDTH - 150, HEIGHT - 60))
+
+    if session_time is not None:
+        session_time_text = SMALL_FONT.render(f"Time Played: {session_time} seconds", True, (0, 0, 0))
+        screen.blit(session_time_text, (WIDTH - 200, HEIGHT - 30))
+
     pygame.display.update()
 
 
@@ -204,61 +223,55 @@ def display_instructions(screen):
     while True:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                return
+                return  # Return to the game when a key is pressed
 
 
-def game_mode_menu(screen):
+def game_over_screen(screen, score):
     screen.fill(BACKGROUND_COLOR)
-    title_text = FONT.render("Select Mode", True, (0, 0, 0))
-    classic_mode_text = SMALL_FONT.render("Press 1 for Classic Mode", True, (0, 0, 0))
-    timed_mode_text = SMALL_FONT.render("Press 2 for Timed Mode", True, (0, 0, 0))
+    game_over_text = FONT.render("Game Over!", True, (255, 0, 0))
+    score_text = SMALL_FONT.render(f"Final Score: {score}", True, (0, 0, 0))
+    retry_text = SMALL_FONT.render("Press R to Retry or Q to Quit", True, (0, 0, 0))
 
-    screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, HEIGHT // 4))
-    screen.blit(classic_mode_text, (WIDTH // 2 - classic_mode_text.get_width() // 2, HEIGHT // 2))
-    screen.blit(timed_mode_text, (WIDTH // 2 - timed_mode_text.get_width() // 2, HEIGHT // 2 + 40))
+    screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 4))
+    screen.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, HEIGHT // 2))
+    screen.blit(retry_text, (WIDTH // 2 - retry_text.get_width() // 2, HEIGHT // 2 + 40))
 
     pygame.display.update()
 
-    while True:
+    waiting = True
+    while waiting:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    return 'classic'
-                elif event.key == pygame.K_2:
-                    return 'timed'
+                if event.key == pygame.K_r:
+                    return 'retry'
+                elif event.key == pygame.K_q:
+                    return 'quit'
 
 
-def handle_menu_input():
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:  # Start Game
-                    return 'start'
-                elif event.key == pygame.K_2:  # View Instructions
-                    return 'instructions'
-                elif event.key == pygame.K_3:  # Quit
-                    pygame.quit()
-                    quit()
+def countdown(screen):
+    for i in range(3, 0, -1):
+        screen.fill(BACKGROUND_COLOR)
+        countdown_text = FONT.render(str(i), True, (0, 0, 0))
+        screen.blit(countdown_text, (WIDTH // 2 - countdown_text.get_width() // 2, HEIGHT // 2))
+        pygame.display.update()
+        pygame.time.wait(1000)  # Wait for 1 second
 
 
 def main_menu():
-    global screen
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption('2048 Menu')
-
-    while True:
-        draw_menu(screen)
-        user_choice = handle_menu_input()
-        if user_choice == 'start':
-            game_mode = game_mode_menu(screen)  # Display the game mode menu
-            break
-        elif user_choice == 'instructions':
-            display_instructions(screen)
-
-    pygame.display.set_caption('2048')
+    draw_menu(screen)
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    return  # Start the game
+                elif event.key == pygame.K_2:
+                    display_instructions(screen)
+                    draw_menu(screen)
+                elif event.key == pygame.K_3:
+                    pygame.quit()
+                    quit()
 
 
 def main():
@@ -267,21 +280,35 @@ def main():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
 
-    display_instructions(screen)
+    game_mode = 'classic'  # Default mode is classic; modify this as needed
+    game = Game(mode=game_mode)
     
-    game = Game()
+    start_time = pygame.time.get_ticks()
+    
+    if game_mode == 'timed':
+        countdown(screen)
     
     load = input("Load saved game? (y/n): ")
     if load.lower() == 'y':
         game.load_game()
 
-    draw_board(screen, game.board, game.score, game.high_score)
+    draw_board(screen, game.board, game.score, game.high_score, game.time_left)
     
     previous_board = copy.deepcopy(game.board)
     previous_score = game.score
     
     running = True
     while running:
+        clock.tick(60)  # 60 FPS for smooth gameplay
+        
+        current_time = (pygame.time.get_ticks() - start_time) // 1000  # Time in seconds
+
+        if game.mode == 'timed':
+            game.update_timer()
+            if game.is_game_over():
+                game_over_screen(screen, game.score)
+                break
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -295,24 +322,22 @@ def main():
                         running = False
                         break
 
-                    draw_board(screen, game.board, game.score, game.high_score)
+                    draw_board(screen, game.board, game.score, game.high_score, game.time_left, current_time)
 
-                elif event.key == pygame.K_r:  # Reset game
+                    if game.is_game_over():
+                        action = game_over_screen(screen, game.score)
+                        if action == 'retry':
+                            game.reset_game()
+                            draw_board(screen, game.board, game.score, game.high_score, game.time_left)
+                        else:
+                            running = False
+
+                elif event.key == pygame.K_r:
                     game.reset_game()
-                    draw_board(screen, game.board, game.score, game.high_score)
-                
-                elif event.key == pygame.K_u:  # Undo move
-                    game.board = previous_board
-                    game.score = previous_score
-                    draw_board(screen, game.board, game.score, game.high_score)
-                
-                elif event.key == pygame.K_s:  # Save game
+                    draw_board(screen, game.board, game.score, game.high_score, game.time_left)
+                elif event.key == pygame.K_s:
                     game.save_game()
-                
-                elif event.key == pygame.K_p:  # Pause game with 'P'
-                    display_instructions(screen)
-                
-                elif event.key == pygame.K_q:  # Quit game
+                elif event.key == pygame.K_q:
                     running = False
 
     pygame.quit()
