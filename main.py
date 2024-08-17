@@ -24,6 +24,121 @@ TILE_COLORS = {
 FONT = pygame.font.SysFont('arial', 40)
 SMALL_FONT = pygame.font.SysFont('arial', 24)
 
+
+class Game:
+    def __init__(self):
+        self.board = self.initialize_board()
+        self.score = 0
+        self.high_score = 0
+
+    def initialize_board(self):
+        board = [[0] * 4 for _ in range(4)]
+        self.add_random_tile(board)
+        self.add_random_tile(board)
+        return board
+
+    def add_random_tile(self, board):
+        empty_positions = [(i, j) for i in range(4) for j in range(4) if board[i][j] == 0]
+        if empty_positions:
+            i, j = random.choice(empty_positions)
+            board[i][j] = random.choice([2, 4])
+
+    def move_left(self):
+        new_board = []
+        score = 0
+        for row in self.board:
+            new_row = [num for num in row if num != 0]
+            for i in range(len(new_row) - 1):
+                if new_row[i] == new_row[i + 1]:
+                    new_row[i] *= 2
+                    score += new_row[i]
+                    new_row[i + 1] = 0
+            new_row = [num for num in new_row if num != 0]
+            new_row += [0] * (4 - len(new_row))
+            new_board.append(new_row)
+        self.board = new_board
+        return score
+
+    def move_right(self):
+        self.board = [row[::-1] for row in self.board]
+        score = self.move_left()
+        self.board = [row[::-1] for row in self.board]
+        return score
+
+    def transpose(self):
+        self.board = [list(row) for row in zip(*self.board)]
+
+    def move_up(self):
+        self.transpose()
+        score = self.move_left()
+        self.transpose()
+        return score
+
+    def move_down(self):
+        self.transpose()
+        score = self.move_right()
+        self.transpose()
+        return score
+
+    def handle_input(self, move):
+        if move == pygame.K_w or move == pygame.K_UP:
+            score = self.move_up()
+        elif move == pygame.K_s or move == pygame.K_DOWN:
+            score = self.move_down()
+        elif move == pygame.K_a or move == pygame.K_LEFT:
+            score = self.move_left()
+        elif move == pygame.K_d or move == pygame.K_RIGHT:
+            score = self.move_right()
+        else:
+            return False
+
+        if score > 0:
+            self.score += score
+            self.add_random_tile(self.board)
+        return True
+
+    def is_game_over(self):
+        for i in range(4):
+            for j in range(4):
+                if self.board[i][j] == 0:
+                    return False
+                if i < 3 and self.board[i][j] == self.board[i + 1][j]:
+                    return False
+                if j < 3 and self.board[i][j] == self.board[i][j + 1]:
+                    return False
+        return True
+
+    def save_game(self):
+        game_state = {
+            'board': self.board,
+            'score': self.score,
+            'high_score': self.high_score
+        }
+        with open('savegame.json', 'w') as f:
+            json.dump(game_state, f)
+        print("Game saved!")
+
+    def load_game(self):
+        try:
+            with open('savegame.json', 'r') as f:
+                game_state = json.load(f)
+            self.board = game_state['board']
+            self.score = game_state['score']
+            self.high_score = game_state['high_score']
+            print("Game loaded!")
+        except FileNotFoundError:
+            print("No saved game found!")
+
+    def reset_game(self):
+        self.board = self.initialize_board()
+        self.score = 0
+
+    def update_high_score(self):
+        if self.score > self.high_score:
+            self.high_score = self.score
+            print(f"New High Score: {self.high_score}")
+
+
 def draw_board(screen, board, score, high_score):
     if score < 1000:
         screen.fill(BACKGROUND_COLOR)
@@ -33,7 +148,7 @@ def draw_board(screen, board, score, high_score):
         screen.fill((144, 238, 144))  # Light Green
     else:
         screen.fill((135, 206, 250))  # Sky Blue
-    
+
     for i in range(4):
         for j in range(4):
             value = board[i][j]
@@ -43,228 +158,115 @@ def draw_board(screen, board, score, high_score):
                 text = FONT.render(str(value), True, (0, 0, 0))
                 text_rect = text.get_rect(center=(j * TILE_SIZE + TILE_SIZE / 2, i * TILE_SIZE + TILE_SIZE / 2))
                 screen.blit(text, text_rect)
-    
+
     score_text = SMALL_FONT.render(f"Score: {score}", True, (0, 0, 0))
     high_score_text = SMALL_FONT.render(f"High Score: {high_score}", True, (0, 0, 0))
     screen.blit(score_text, (10, HEIGHT - 90))
     screen.blit(high_score_text, (10, HEIGHT - 60))
     pygame.display.update()
 
-def initialize_board():
-    board = [[0] * 4 for _ in range(4)]
-    return board
 
-def display_board(board):
-    for row in board:
-        print(row)
-    print()
+def draw_menu(screen):
+    screen.fill(BACKGROUND_COLOR)
+    title_text = FONT.render("2048", True, (0, 0, 0))
+    start_text = SMALL_FONT.render("Press 1 to Start Game", True, (0, 0, 0))
+    instructions_text = SMALL_FONT.render("Press 2 for Instructions", True, (0, 0, 0))
+    quit_text = SMALL_FONT.render("Press 3 to Quit", True, (0, 0, 0))
 
-def add_random_tile(board):
-    empty_positions = [(i, j) for i in range(4) for j in range(4) if board[i][j] == 0]
-    if empty_positions:
-        i, j = random.choice(empty_positions)
-        board[i][j] = random.choice([2, 4])
+    screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, HEIGHT // 4))
+    screen.blit(start_text, (WIDTH // 2 - start_text.get_width() // 2, HEIGHT // 2))
+    screen.blit(instructions_text, (WIDTH // 2 - instructions_text.get_width() // 2, HEIGHT // 2 + 40))
+    screen.blit(quit_text, (WIDTH // 2 - quit_text.get_width() // 2, HEIGHT // 2 + 80))
 
-def move_left(board):
-    new_board = []
-    score = 0
-    for row in board:
-        new_row = [num for num in row if num != 0]
-        for i in range(len(new_row) - 1):
-            if new_row[i] == new_row[i + 1]:
-                new_row[i] *= 2
-                score += new_row[i]
-                new_row[i + 1] = 0
-        new_row = [num for num in new_row if num != 0]
-        new_row += [0] * (4 - len(new_row))
-        new_board.append(new_row)
-    return new_board, score
-
-def move_right(board):
-    reversed_board = [row[::-1] for row in board]
-    new_board, score = move_left(reversed_board)
-    return [row[::-1] for row in new_board], score
-
-def transpose(board):
-    return [list(row) for row in zip(*board)]
-
-def move_up(board):
-    transposed_board = transpose(board)
-    new_board, score = move_left(transposed_board)
-    return transpose(new_board), score
-
-def move_down(board):
-    transposed_board = transpose(board)
-    new_board, score = move_right(transposed_board)
-    return transpose(new_board), score
-
-def handle_input(board, move):
-    if move == pygame.K_w or move == pygame.K_UP:
-        return move_up(board)
-    elif move == pygame.K_s or move == pygame.K_DOWN:
-        return move_down(board)
-    elif move == pygame.K_a or move == pygame.K_LEFT:
-        return move_left(board)
-    elif move == pygame.K_d or move == pygame.K_RIGHT:
-        return move_right(board)
-    return board, 0
-
-def is_game_over(board):
-    for i in range(4):
-        for j in range(4):
-            if board[i][j] == 0:
-                return False
-            if i < 3 and board[i][j] == board[i + 1][j]:
-                return False
-            if j < 3 and board[i][j] == board[i][j + 1]:
-                return False
-    return True
-
-def save_game(board, score, high_score):
-    game_state = {
-        'board': board,
-        'score': score,
-        'high_score': high_score
-    }
-    with open('savegame.json', 'w') as f:
-        json.dump(game_state, f)
-    print("Game saved!")
-
-def load_game():
-    try:
-        with open('savegame.json', 'r') as f:
-            game_state = json.load(f)
-        return game_state['board'], game_state['score'], game_state['high_score']
-    except FileNotFoundError:
-        print("No saved game found!")
-        return initialize_board(), 0, 0
-
-def update_high_score(score, high_score):
-    if score > high_score:
-        high_score = score
-        print(f"New High Score: {high_score}")
-    return high_score
-
-def animate_move(screen, old_board, new_board, score, high_score, direction):
-    steps = 10
-    delay = 20  # milliseconds
-
-    old_positions = {(i, j): (i, j) for i in range(4) for j in range(4) if old_board[i][j] != 0}
-    for step in range(steps + 1):
-        screen.fill(BACKGROUND_COLOR)
-        for i in range(4):
-            for j in range(4):
-                value = old_board[i][j]
-                if value != 0:
-                    start_pos = old_positions.get((i, j), (i, j))
-                    end_pos = (i, j)
-                    if direction == 'left':
-                        new_pos = (start_pos[0], start_pos[1] - (start_pos[1] - end_pos[1]) * step / steps)
-                    elif direction == 'right':
-                        new_pos = (start_pos[0], start_pos[1] + (end_pos[1] - start_pos[1]) * step / steps)
-                    elif direction == 'up':
-                        new_pos = (start_pos[0] - (start_pos[0] - end_pos[0]) * step / steps, start_pos[1])
-                    elif direction == 'down':
-                        new_pos = (start_pos[0] + (end_pos[0] - start_pos[0]) * step / steps, start_pos[1])
-
-                    new_pos = (int(new_pos[1] * TILE_SIZE), int(new_pos[0] * TILE_SIZE))
-                    color = TILE_COLORS.get(value, TILE_COLORS[2048])
-                    pygame.draw.rect(screen, color, (new_pos[1], new_pos[0], TILE_SIZE, TILE_SIZE))
-                    text = FONT.render(str(value), True, (0, 0, 0))
-                    text_rect = text.get_rect(center=(new_pos[1] + TILE_SIZE / 2, new_pos[0] + TILE_SIZE / 2))
-                    screen.blit(text, text_rect)
-
-        score_text = SMALL_FONT.render(f"Score: {score}", True, (0, 0, 0))
-        high_score_text = SMALL_FONT.render(f"High Score: {high_score}", True, (0, 0, 0))
-        screen.blit(score_text, (10, HEIGHT - 90))
-        screen.blit(high_score_text, (10, HEIGHT - 60))
-        pygame.display.update()
-        pygame.time.delay(delay)
-
-def pause_game(screen):
-    paused = True
-    pause_text = FONT.render("Game Paused", True, (0, 0, 0))
-    screen.blit(pause_text, (WIDTH // 4, HEIGHT // 2 - 20))
     pygame.display.update()
-    while paused:
+
+
+def display_instructions(screen):
+    screen.fill(BACKGROUND_COLOR)
+    instructions = [
+        "2048 Game Instructions:",
+        "Use arrow keys (WASD or arrows) to move the tiles.",
+        "Combine matching tiles to reach 2048.",
+        "Press 'R' to reset the game.",
+        "Press 'S' to save the game.",
+        "Press 'U' to undo the last move.",
+        "Press 'P' to pause.",
+        "Press 'Q' to quit."
+    ]
+    y_offset = 50
+    for line in instructions:
+        instruction_text = SMALL_FONT.render(line, True, (0, 0, 0))
+        screen.blit(instruction_text, (20, y_offset))
+        y_offset += 30
+
+    pygame.display.update()
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                return
+
+
+def game_mode_menu(screen):
+    screen.fill(BACKGROUND_COLOR)
+    title_text = FONT.render("Select Mode", True, (0, 0, 0))
+    classic_mode_text = SMALL_FONT.render("Press 1 for Classic Mode", True, (0, 0, 0))
+    timed_mode_text = SMALL_FONT.render("Press 2 for Timed Mode", True, (0, 0, 0))
+
+    screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, HEIGHT // 4))
+    screen.blit(classic_mode_text, (WIDTH // 2 - classic_mode_text.get_width() // 2, HEIGHT // 2))
+    screen.blit(timed_mode_text, (WIDTH // 2 - timed_mode_text.get_width() // 2, HEIGHT // 2 + 40))
+
+    pygame.display.update()
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    return 'classic'
+                elif event.key == pygame.K_2:
+                    return 'timed'
+
+
+def handle_menu_input():
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:  # Resume with 'R'
-                    paused = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:  # Start Game
+                    return 'start'
+                elif event.key == pygame.K_2:  # View Instructions
+                    return 'instructions'
+                elif event.key == pygame.K_3:  # Quit
+                    pygame.quit()
+                    quit()
 
-def display_instructions(screen):
-    instructions = [
-        "Use W/A/S/D or Arrow keys to move tiles.",
-        "Press R to Reset game.",
-        "Press U to Undo move.",
-        "Press S to Save game.",
-        "Press P to Pause game.",
-        "Press Q to Quit game."
-    ]
-    font = pygame.font.SysFont('arial', 24)
-    screen.fill(BACKGROUND_COLOR)
-    for i, instruction in enumerate(instructions):
-        text = font.render(instruction, True, (0, 0, 0))
-        screen.blit(text, (10, 10 + i * 30))
-    pygame.display.update()
-    pygame.time.wait(5000)
 
-class Game:
-    def __init__(self):
-        self.board = initialize_board()
-        add_random_tile(self.board)
-        add_random_tile(self.board)
-        self.score = 0
-        self.high_score = 0
-
-    def reset_game(self):
-        self.board = initialize_board()
-        add_random_tile(self.board)
-        add_random_tile(self.board)
-        self.score = 0
-
-    def update_high_score(self):
-        if self.score > self.high_score:
-            self.high_score = self.score
-            print(f"New High Score: {self.high_score}")
-
-    def save_game(self):
-        save_game(self.board, self.score, self.high_score)
-
-    def load_game(self):
-        self.board, self.score, self.high_score = load_game()
-    
-    def handle_input(self, move):
-        new_board, move_score = handle_input(self.board, move)
-        if new_board != self.board:
-            direction = None
-            if move in [pygame.K_w, pygame.K_UP]:
-                direction = 'up'
-            elif move in [pygame.K_s, pygame.K_DOWN]:
-                direction = 'down'
-            elif move in [pygame.K_a, pygame.K_LEFT]:
-                direction = 'left'
-            elif move in [pygame.K_d, pygame.K_RIGHT]:
-                direction = 'right'
-
-            animate_move(screen, self.board, new_board, self.score, self.high_score, direction)
-
-            self.board = new_board
-            self.score += move_score
-            add_random_tile(self.board)
-            self.update_high_score()
-            return not is_game_over(self.board)
-        return True
-
-def main():
+def main_menu():
     global screen
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption('2048 Menu')
+
+    while True:
+        draw_menu(screen)
+        user_choice = handle_menu_input()
+        if user_choice == 'start':
+            game_mode = game_mode_menu(screen)  # Display the game mode menu
+            break
+        elif user_choice == 'instructions':
+            display_instructions(screen)
+
     pygame.display.set_caption('2048')
+
+
+def main():
+    main_menu()  # Show the main menu before starting the game
+    global screen
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
-    
+
     display_instructions(screen)
     
     game = Game()
@@ -308,12 +310,13 @@ def main():
                     game.save_game()
                 
                 elif event.key == pygame.K_p:  # Pause game with 'P'
-                    pause_game(screen)
+                    display_instructions(screen)
                 
                 elif event.key == pygame.K_q:  # Quit game
                     running = False
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
