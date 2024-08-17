@@ -84,7 +84,7 @@ def move_right(board):
     reversed_board = [row[::-1] for row in board]
     new_board, score = move_left(reversed_board)
     return [row[::-1] for row in new_board], score
-    
+
 def transpose(board):
     return [list(row) for row in zip(*board)]
 
@@ -92,12 +92,12 @@ def move_up(board):
     transposed_board = transpose(board)
     new_board, score = move_left(transposed_board)
     return transpose(new_board), score
-    
+
 def move_down(board):
     transposed_board = transpose(board)
     new_board, score = move_right(transposed_board)
     return transpose(new_board), score
-    
+
 def handle_input(board, move):
     if move == pygame.K_w or move == pygame.K_UP:
         return move_up(board)
@@ -156,7 +156,7 @@ def animate_move(screen, old_board, new_board, score, high_score, direction):
             for j in range(4):
                 value = old_board[i][j]
                 if value != 0:
-                    start_pos = old_positions[(i, j)]
+                    start_pos = old_positions.get((i, j), (i, j))
                     end_pos = (i, j)
                     if direction == 'left':
                         new_pos = (start_pos[0], start_pos[1] - (start_pos[1] - end_pos[1]) * step / steps)
@@ -167,7 +167,7 @@ def animate_move(screen, old_board, new_board, score, high_score, direction):
                     elif direction == 'down':
                         new_pos = (start_pos[0] + (end_pos[0] - start_pos[0]) * step / steps, start_pos[1])
 
-                    new_pos = (int(new_pos[0] * TILE_SIZE), int(new_pos[1] * TILE_SIZE))
+                    new_pos = (int(new_pos[1] * TILE_SIZE), int(new_pos[0] * TILE_SIZE))
                     color = TILE_COLORS.get(value, TILE_COLORS[2048])
                     pygame.draw.rect(screen, color, (new_pos[1], new_pos[0], TILE_SIZE, TILE_SIZE))
                     text = FONT.render(str(value), True, (0, 0, 0))
@@ -195,27 +195,88 @@ def pause_game(screen):
                 if event.key == pygame.K_r:  # Resume with 'R'
                     paused = False
 
+def display_instructions(screen):
+    instructions = [
+        "Use W/A/S/D or Arrow keys to move tiles.",
+        "Press R to Reset game.",
+        "Press U to Undo move.",
+        "Press S to Save game.",
+        "Press P to Pause game.",
+        "Press Q to Quit game."
+    ]
+    font = pygame.font.SysFont('arial', 24)
+    screen.fill(BACKGROUND_COLOR)
+    for i, instruction in enumerate(instructions):
+        text = font.render(instruction, True, (0, 0, 0))
+        screen.blit(text, (10, 10 + i * 30))
+    pygame.display.update()
+    pygame.time.wait(5000)
+
+class Game:
+    def __init__(self):
+        self.board = initialize_board()
+        add_random_tile(self.board)
+        add_random_tile(self.board)
+        self.score = 0
+        self.high_score = 0
+
+    def reset_game(self):
+        self.board = initialize_board()
+        add_random_tile(self.board)
+        add_random_tile(self.board)
+        self.score = 0
+
+    def update_high_score(self):
+        if self.score > self.high_score:
+            self.high_score = self.score
+            print(f"New High Score: {self.high_score}")
+
+    def save_game(self):
+        save_game(self.board, self.score, self.high_score)
+
+    def load_game(self):
+        self.board, self.score, self.high_score = load_game()
+    
+    def handle_input(self, move):
+        new_board, move_score = handle_input(self.board, move)
+        if new_board != self.board:
+            direction = None
+            if move in [pygame.K_w, pygame.K_UP]:
+                direction = 'up'
+            elif move in [pygame.K_s, pygame.K_DOWN]:
+                direction = 'down'
+            elif move in [pygame.K_a, pygame.K_LEFT]:
+                direction = 'left'
+            elif move in [pygame.K_d, pygame.K_RIGHT]:
+                direction = 'right'
+
+            animate_move(screen, self.board, new_board, self.score, self.high_score, direction)
+
+            self.board = new_board
+            self.score += move_score
+            add_random_tile(self.board)
+            self.update_high_score()
+            return not is_game_over(self.board)
+        return True
+
 def main():
+    global screen
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption('2048')
     clock = pygame.time.Clock()
     
+    display_instructions(screen)
+    
+    game = Game()
+    
     load = input("Load saved game? (y/n): ")
     if load.lower() == 'y':
-        game_board, score, high_score = load_game()
-    else:
-        game_board = initialize_board()
-        add_random_tile(game_board)
-        add_random_tile(game_board)
-        score = 0
-        high_score = 0
+        game.load_game()
 
-    draw_board(screen, game_board, score, high_score)
-    print(f"Score: {score}")
-    print(f"High Score: {high_score}")
-
-    previous_board = copy.deepcopy(game_board)
-    previous_score = score
+    draw_board(screen, game.board, game.score, game.high_score)
+    
+    previous_board = copy.deepcopy(game.board)
+    previous_score = game.score
     
     running = True
     while running:
@@ -224,53 +285,34 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key in [pygame.K_w, pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]:
-                    previous_board = copy.deepcopy(game_board)
-                    previous_score = score
+                    previous_board = copy.deepcopy(game.board)
+                    previous_score = game.score
 
-                    new_board, move_score = handle_input(game_board, event.key)
-                    if new_board != game_board:
-                        direction = None
-                        if event.key in [pygame.K_w, pygame.K_UP]:
-                            direction = 'up'
-                        elif event.key in [pygame.K_s, pygame.K_DOWN]:
-                            direction = 'down'
-                        elif event.key in [pygame.K_a, pygame.K_LEFT]:
-                            direction = 'left'
-                        elif event.key in [pygame.K_d, pygame.K_RIGHT]:
-                            direction = 'right'
+                    if not game.handle_input(event.key):
+                        print("Game Over!")
+                        running = False
+                        break
 
-                        animate_move(screen, game_board, new_board, score, high_score, direction)
-
-                        game_board = new_board
-                        score += move_score
-                        add_random_tile(game_board)
-
-                        draw_board(screen, game_board, score, high_score)
-                        high_score = update_high_score(score, high_score)
-
-                        if is_game_over(game_board):
-                            print("Game Over!")
-                            running = False
-                            break
+                    draw_board(screen, game.board, game.score, game.high_score)
 
                 elif event.key == pygame.K_r:  # Reset game
-                    game_board = initialize_board()
-                    add_random_tile(game_board)
-                    add_random_tile(game_board)
-                    score = 0
-                    draw_board(screen, game_board, score, high_score)
+                    game.reset_game()
+                    draw_board(screen, game.board, game.score, game.high_score)
                 
                 elif event.key == pygame.K_u:  # Undo move
-                    game_board = previous_board
-                    score = previous_score
-                    draw_board(screen, game_board, score, high_score)
+                    game.board = previous_board
+                    game.score = previous_score
+                    draw_board(screen, game.board, game.score, game.high_score)
                 
                 elif event.key == pygame.K_s:  # Save game
-                    save_game(game_board, score, high_score)
+                    game.save_game()
                 
                 elif event.key == pygame.K_p:  # Pause game with 'P'
                     pause_game(screen)
                 
+                elif event.key == pygame.K_q:  # Quit game
+                    running = False
+
     pygame.quit()
 
 if __name__ == "__main__":
