@@ -4,7 +4,7 @@ import json
 import pygame
 
 pygame.init()
-WIDTH, HEIGHT = 400, 400
+WIDTH, HEIGHT = 400, 500
 TILE_SIZE = WIDTH // 4
 BACKGROUND_COLOR = (187, 173, 160)
 TILE_COLORS = {
@@ -22,6 +22,7 @@ TILE_COLORS = {
     2048: (237, 194, 46),
 }
 FONT = pygame.font.SysFont('arial', 40)
+SMALL_FONT = pygame.font.SysFont('arial', 24)
 
 def draw_board(screen, board, score, high_score):
     screen.fill(BACKGROUND_COLOR)
@@ -34,6 +35,10 @@ def draw_board(screen, board, score, high_score):
                 text = FONT.render(str(value), True, (0, 0, 0))
                 text_rect = text.get_rect(center=(j * TILE_SIZE + TILE_SIZE / 2, i * TILE_SIZE + TILE_SIZE / 2))
                 screen.blit(text, text_rect)
+    score_text = SMALL_FONT.render(f"Score: {score}", True, (0, 0, 0))
+    high_score_text = SMALL_FONT.render(f"High Score: {high_score}", True, (0, 0, 0))
+    screen.blit(score_text, (10, HEIGHT - 90))
+    screen.blit(high_score_text, (10, HEIGHT - 60))
     pygame.display.update()
 
 def initialize_board():
@@ -145,14 +150,14 @@ def main():
         score = 0
         high_score = 0
 
-    display_board(game_board)
+    draw_board(screen, game_board, score, high_score)
     print(f"Score: {score}")
     print(f"High Score: {high_score}")
 
     previous_board = copy.deepcopy(game_board)
     previous_score = score
     
-     running = True
+    running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -179,11 +184,17 @@ def main():
                     game_board = previous_board
                     score = previous_score
                     draw_board(screen, game_board, score, high_score)
-                elif event.key == pygame.K_s:
+                elif event.key == pygame.K_v: 
                     save_game(game_board, score, high_score)
                     print(f"Score: {score}")
                     print(f"High Score: {high_score}")
-
+                elif event.key == pygame.K_r:
+                    game_board = initialize_board()
+                    add_random_tile(game_board)
+                    add_random_tile(game_board)
+                    score = 0
+                    print("Game Reset!")
+                    
         draw_board(screen, game_board, score, high_score)
         clock.tick(30)
 
